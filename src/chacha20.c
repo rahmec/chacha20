@@ -16,7 +16,7 @@ typedef uint32_t block512[16];
 
 uint32_t* pad_blocks(seed256 seed, ctr64 ctr, nonce64 nonce);
 void permute_block(block512 *block);
-void quarterRound(block512 *block, int a, int b, int c, int d);
+void quarter_round(block512 *block, int a, int b, int c, int d);
 
 int main()
 {
@@ -30,10 +30,10 @@ int main()
  *  Padding function
  *
  *  seed: 256-bit seed (8 32-bit blocks s0,...,s7)
- *  ctr: 64-bit counter (2 32 bit blocks c0,c1)
- *  nonce: 64-bit nonce (2 32 bit blocks n0,n1)
+ *  ctr: 64-bit counter (2 32-bit blocks c0,c1)
+ *  nonce: 64-bit nonce (2 32-bit blocks n0,n1)
  *
- *  returns: 512-bit block (16 32 bit blocks x0,...,x15)
+ *  returns: 512-bit block (16 32-bit blocks b0,...,b15)
 */
 uint32_t* pad_blocks(seed256 seed, ctr64 ctr, nonce64 nonce)
 {
@@ -52,29 +52,35 @@ uint32_t* pad_blocks(seed256 seed, ctr64 ctr, nonce64 nonce)
 
 /*
  * Function: permute_block
- * -----j-----------
+ * -----------------------
  *  Permutation function
  *
- *  block: 512-bit block (8 16-bit blocks b0,...,b7)
- *
- *  returns: 512-bit block (permutation of the original block)
+ *  block: 512-bit block (16 32-bit blocks b0,...,b15)
 */
 void permute_block(block512* block)
 {
     // Apply to four columns
-    quarterRound(block, 0,4,8,12);
-    quarterRound(block, 1,5,9,13);
-    quarterRound(block, 2,6,10,14);
-    quarterRound(block, 3,7,11,15);
+    quarter_round(block, 0,4,8,12);
+    quarter_round(block, 1,5,9,13);
+    quarter_round(block, 2,6,10,14);
+    quarter_round(block, 3,7,11,15);
 
     // Apply to four diagonals with wrap
-    quarterRound(block, 0,5,10,15);
-    quarterRound(block, 1,6,11,12);
-    quarterRound(block, 2,7,8,13);
-    quarterRound(block, 3,4,9,14);
+    quarter_round(block, 0,5,10,15);
+    quarter_round(block, 1,6,11,12);
+    quarter_round(block, 2,7,8,13);
+    quarter_round(block, 3,4,9,14);
 }
 
-void quarterRound(block512 *block, int a, int b, int c, int d)
+/*
+ * Function: quarter_round
+ * -----------------
+ *  ChaCha20 permutation round
+ *
+ *  block: 512-bit block (16 32-bit blocks b0,...,b15)
+ *  a,b,c,d: block sub-blocks' indexes
+*/
+void quarter_round(block512 *block, int a, int b, int c, int d)
 {
    uint32_t* x_a = *(block + a); 
    uint32_t* x_b = *(block + b); 
