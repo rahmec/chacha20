@@ -38,15 +38,30 @@ int main()
 
     printf("Block: [");
     for(int i=0; i<16; i++){
-        printf(" 0x%x ",block[i]);
+        printf(" 0x%x ", block[i]);
     }
     printf("]\n");
 
-    permute_block(block);
+    block512 permuted_block;
+    memcpy(permuted_block, block, sizeof (block512));
+    //memcpy(permuted_block, block, (sizeof (uint32_t))*16); // (another way)
+    permute_block(permuted_block);
 
     printf("Permuted block: [");
     for(int i=0; i<16; i++){
-        printf(" 0x%x ",block[i]);
+        printf(" 0x%x ", permuted_block[i]);
+    }
+    printf("]\n");
+
+    block512 random_block;
+
+    for(int i=0; i<16; i++){
+        random_block[i] = block[i] ^ permuted_block[i];
+    }
+
+    printf("Random block: [");
+    for(int i=0; i<16; i++){
+        printf(" 0x%x ", random_block[i]);
     }
     printf("]\n");
 
@@ -55,7 +70,7 @@ int main()
 
 /*
  * Function: pad_blocks 
- * -----------------
+ * --------------------
  *  Padding function
  *
  *  seed: 256-bit seed (8 32-bit blocks s0,...,s7)
@@ -72,7 +87,7 @@ void pad_blocks(seed256 seed, ctr64 ctr, nonce64 nonce, block512 block)
        ctr[0],     ctr[1],     nonce[0],   nonce[1]
     };
 
-    memcpy(block, paddedBlock, (sizeof (uint32_t))*16);
+    memcpy(block, paddedBlock, sizeof (block512));
 }
 
 /*
@@ -99,13 +114,13 @@ void permute_block(block512 block)
 
 /*
  * Function: quarter_round
- * -----------------
+ * -----------------------
  *  ChaCha20 permutation round
  *
  *  block: 512-bit block (16 32-bit blocks b0,...,b15)
  *  a,b,c,d: block sub-blocks' indexes
 */
-void quarter_round(uint32_t block[], int a, int b, int c, int d)
+void quarter_round(block512 block, int a, int b, int c, int d)
 {
    uint32_t* x_a = &block[a]; 
    uint32_t* x_b = &block[b]; 
@@ -116,3 +131,9 @@ void quarter_round(uint32_t block[], int a, int b, int c, int d)
    *x_a += *x_b; *x_d ^= *x_a; ROTL(*x_d,8);
    *x_c += *x_d; *x_b ^= *x_c; ROTL(*x_b,7);
 }
+
+/*
+* TODO:
+* - Function to create L random blocks
+* - Function for bitwise XOR
+*/
