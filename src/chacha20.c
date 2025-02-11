@@ -17,6 +17,10 @@ typedef uint32_t block512[16];
 void pad_blocks(seed256 seed, ctr64 ctr, nonce64 nonce, block512 block);
 void permute_block(block512 block);
 void quarter_round(block512 block, int a, int b, int c, int d);
+void print_block(uint32_t* block, char label[], int length);
+void chacha20_PRG(block512 output[], seed256 seed, ctr64 ctr, nonce64 nonce,
+                  int length);
+void print_output(block512 output[], int length);
 
 int main()
 {
@@ -33,37 +37,11 @@ int main()
         0xbbbbbbbb, 0xcccccccc
     };
 
-    block512 block;
-    pad_blocks(seed, ctr, nonce, block);
+    int length = 10;
+    block512 output[10];
 
-    printf("Block: [");
-    for(int i=0; i<16; i++){
-        printf(" 0x%x ", block[i]);
-    }
-    printf("]\n");
-
-    block512 permuted_block;
-    memcpy(permuted_block, block, sizeof (block512));
-    //memcpy(permuted_block, block, (sizeof (uint32_t))*16); // (another way)
-    permute_block(permuted_block);
-
-    printf("Permuted block: [");
-    for(int i=0; i<16; i++){
-        printf(" 0x%x ", permuted_block[i]);
-    }
-    printf("]\n");
-
-    block512 random_block;
-
-    for(int i=0; i<16; i++){
-        random_block[i] = block[i] ^ permuted_block[i];
-    }
-
-    printf("Random block: [");
-    for(int i=0; i<16; i++){
-        printf(" 0x%x ", random_block[i]);
-    }
-    printf("]\n");
+    chacha20_PRG(output,seed, ctr, nonce, length);
+    print_output(output,length);
 
     return 0;
 }
@@ -132,8 +110,49 @@ void quarter_round(block512 block, int a, int b, int c, int d)
    *x_c += *x_d; *x_b ^= *x_c; ROTL(*x_b,7);
 }
 
+void chacha20_PRG(block512 pr_block[], seed256 seed, ctr64 ctr, nonce64 nonce,
+                  int length){
+    for(int i=0; i<length; i++){
+        block512 padded_block;
+        pad_blocks(seed, ctr, nonce, padded_block);
+
+        block512 permuted_block;
+        memcpy(permuted_block, padded_block, sizeof (block512));
+        //memcpy(permuted_block, block, (sizeof (uint32_t))*16); // other way
+        
+        // 10 sets of permutations
+        for(int j=0; j<10; j++){
+            permute_block(permuted_block);
+        }
+
+        // Blockwise xor (pairwise word addition mod 32)
+        for(int j=0; j<16; j++){
+            pr_block[i][j] = padded_block[j] ^ permuted_block[j];
+        }
+        // CTR update (needs fix)
+        ctr[0] = ctr[0]+1;
+    }
+}
+
+void print_block(uint32_t* block, char label[], int length){
+    printf("%s: [", label);
+    for(int i=0; i<length; i++){
+        printf(" 0x%x ", block[i]);
+    }
+    printf("]\n");
+}
+void print_output(block512 output[], int length){
+    printf("Output: [");
+    for(int i=0; i<length; i++){
+        for(int j=0; j<16; j++){
+            printf(" 0x%x ", output[i][j]);
+        }
+        printf("\n");
+    }
+    printf("]\n");
+}
+
 /*
 * TODO:
-* - Function to create L random blocks
-* - Function for bitwise XOR
+* - CTR update that takes into account 2 blocks
 */
