@@ -21,6 +21,7 @@ void print_block(uint32_t* block, char label[], int length);
 void chacha20_PRG(block512 output[], seed256 seed, ctr64 ctr, nonce64 nonce,
                   int length);
 void print_output(block512 output[], int length);
+void array_sum_uint32(uint32_t array[], uint32_t addend, int length);
 
 int main()
 {
@@ -30,15 +31,15 @@ int main()
     };
 
     ctr64 ctr = {
-        0x99999999, 0xaaaaaaaa
+        0x00000000, 0x00000000
     };
 
     nonce64 nonce = {
         0xbbbbbbbb, 0xcccccccc
     };
 
-    int length = 10;
-    block512 output[10];
+    int length = 100;
+    block512 output[length];
 
     chacha20_PRG(output,seed, ctr, nonce, length);
     print_output(output,length);
@@ -110,8 +111,20 @@ void quarter_round(block512 block, int a, int b, int c, int d)
    *x_c += *x_d; *x_b ^= *x_c; ROTL(*x_b,7);
 }
 
-void chacha20_PRG(block512 pr_block[], seed256 seed, ctr64 ctr, nonce64 nonce,
-                  int length){
+/*
+ * Function: chacha20_PRG
+ * ----------------------
+ *  ChaCha20 Pseudo Random Generator(PRG)
+ *
+ *  seed: 256-bit seed (8 32-bit blocks s0,...,s7)
+ *  ctr: 64-bit counter (2 32-bit blocks c0,c1)
+ *  nonce: 64-bit nonce (2 32-bit blocks n0,n1)
+ *  output: pseudo-random output (length*16 32-bit blocks matrix r0,...rlength)
+ *
+*/
+void chacha20_PRG(block512 output[], seed256 seed, ctr64 ctr, nonce64 nonce,
+                  int length)
+{
     for(int i=0; i<length; i++){
         block512 padded_block;
         pad_blocks(seed, ctr, nonce, padded_block);
@@ -127,21 +140,42 @@ void chacha20_PRG(block512 pr_block[], seed256 seed, ctr64 ctr, nonce64 nonce,
 
         // Blockwise xor (pairwise word addition mod 32)
         for(int j=0; j<16; j++){
-            pr_block[i][j] = padded_block[j] ^ permuted_block[j];
+            output[i][j] = padded_block[j] ^ permuted_block[j];
         }
-        // CTR update (needs fix)
-        ctr[0] = ctr[0]+1;
+
+        array_sum_uint32(ctr,1,2);
+        print_block(ctr, "ctr", 2);
     }
 }
 
-void print_block(uint32_t* block, char label[], int length){
+/*
+ * Function: print_block
+ * ---------------------
+ *  Prints all elements in a uint32_t* array in hexadecimal
+ *
+ *  block: array to print 
+ *  label: array name to print
+ *  length: array length
+*/
+void print_block(uint32_t block[], char label[], int length)
+{
     printf("%s: [", label);
     for(int i=0; i<length; i++){
         printf(" 0x%x ", block[i]);
     }
     printf("]\n");
 }
-void print_output(block512 output[], int length){
+
+/*
+ * Function: print_block
+ * ---------------------
+ *  Prints all elements of ChaCha20 output 
+ *
+ *  output: ChaCha20 pseudorandom output (uint32_t length*16 matrix)
+ *  length: numbers of outputs generated
+*/
+void print_output(block512 output[], int length)
+{
     printf("Output: [");
     for(int i=0; i<length; i++){
         for(int j=0; j<16; j++){
@@ -153,6 +187,32 @@ void print_output(block512 output[], int length){
 }
 
 /*
-* TODO:
-* - CTR update that takes into account 2 blocks
+ * Function: array_sum_mod32
+ * -------------------------
+ * Add an integer to a block divided in sub-blocks of uint32_t  
+ *
+ * array: array containing the uint32_t blocks
+ * addend: integer to sum
+ * length: length of the array
 */
+void array_sum_uint32(uint32_t array[], uint32_t addend, int length)
+{
+    int i=0;
+    while(i < length - 1 && array[i] == 0xffffffff){
+        i++;
+    }
+
+    if(array[i] + addend < addend){
+        int j = (i + 1) % length;
+        array[j] = array[i] + addend;
+        if(j == 0){
+            for(int k=1; k<length; k++){
+                array[k] = 0x00;
+            }
+        }else{
+            array[i] = 0xffffffff;
+        }
+    }else{
+        array[i] = array[i] + addend;
+    }
+}
