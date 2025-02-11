@@ -169,7 +169,7 @@ void print_block(uint32_t block[], char label[], int length)
 /*
  * Function: print_block
  * ---------------------
- *  Prints all elements of ChaCha20 output 
+ *  Prints all elements of ChaCha20 keystream output 
  *
  *  output: ChaCha20 pseudorandom output (uint32_t length*16 matrix)
  *  length: numbers of outputs generated
